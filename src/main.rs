@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::api::routes::root;
 use crate::simulate::{SimulateService, SimulateServiceImpl};
 use crate::snapshot::{SnapshotService, SnapshotServiceImpl};
-use crate::models::{Chain, Algorithm, ProcessConfig, SimulationResultOutput};
+use crate::models::{Chain, Algorithm, ProcessConfig, SimulationResultOutput, ProcessResults};
 use crate::multi_block_state_client::{MultiBlockClient};
 use crate::primitives::Storage;
 use crate::raw_state_client::RawClientTrait;
@@ -190,9 +190,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let path = process_args.results;
             let file = std::fs::read(&path)
                 .map_err(|e| format!("Failed to read results output file '{}': {}", path, e))?;
-            let _config: SimulationResultOutput = serde_json::from_slice(&file).map_err(|e| format!("Failed to parse results output JSON: {}", e))?;
+            let output: SimulationResultOutput = serde_json::from_slice(&file).map_err(|e| format!("Failed to parse results output JSON: {}", e))?;
 
-            println!("Read config");
+            let processed = ProcessResults {
+                validators: config.validators.into_iter().map(|(name, stash)| {
+                    (name, output.active_validators.iter().find_map(|v| {
+                        if v.stash == stash {
+                            Some(v.clone())
+                        } else {
+                            None
+                        }
+                    }))
+                }).collect()
+            };
+            println!("Processed: {:?}", processed);
         },
         Action::Simulate(simulate_args) => {
             let block: Option<H256> = if simulate_args.block == "latest" {
