@@ -262,7 +262,7 @@ where
         };
         info!("Mining solution for election...");
 
-        let paged_solution = BaseMiner::<MC>::mine_solution(mine_input).map_err(|e| format!("Error mining solution: {:?}", e))?;
+        let (paged_solution, winners_sorted_by_slot) = BaseMiner::<MC>::mine_solution(mine_input).map_err(|e| format!("Error mining solution: {:?}", e))?;
         
         // Convert each solution page to supports and combine them
         let mut total_supports: BTreeMap<AccountId, Support<AccountId>> = BTreeMap::new();
@@ -282,7 +282,10 @@ where
             }
         }
 
+        let winner_stashes_sorted = winners_sorted_by_slot.into_iter().map(|e| e.0).collect::<Vec<_>>();
+
         let validator_futures: Vec<_> = total_supports.into_iter().map(|(winner, support)| {
+            let winners_sorted = winner_stashes_sorted.clone();
             let storage = block_details.storage.clone();
             async move {
                 let validator_prefs = multi_block_state_client.get_validator_prefs(&storage, winner.clone()).await
@@ -305,8 +308,16 @@ where
                     }
                 }).collect();
 
+                let slot = winners_sorted.clone().iter().enumerate().find_map(|(i, s)| {
+                    if s == &winner {
+                        return Some(i as u32);
+                    }
+                    None
+                }).expect("Validator needs to be in winners; qed");
+
                 Ok::<Validator, String>(Validator {
                     stash: winner.to_ss58check(),
+                    slot: slot,
                     self_stake: self_stake as u128,
                     total_stake: support.total as u128,
                     commission: validator_prefs.commission.deconstruct() as f64 / 1_000_000_000.0,
