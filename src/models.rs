@@ -50,13 +50,18 @@ pub struct ProcessConfig {
     pub validators: Vec<(String, String)>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ProcessResults {
+    pub validators: Vec<(String, Option<ValidatorOutput>)>,
+}
+
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct ValidatorNomination {
     pub nominator: String,
     pub stake: Balance,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct Validator {
     pub stash: String,
     // desirability of the validator as per PhragmenSeq/Phragmms
@@ -69,13 +74,13 @@ pub struct Validator {
     pub nominations: Vec<ValidatorNomination>,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct ValidatorNominationOutput {
     pub nominator: String,
     pub stake: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct ValidatorOutput {
     pub stash: String,
     pub self_stake: String,
