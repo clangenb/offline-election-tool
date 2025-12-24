@@ -45,6 +45,11 @@ impl Chain {
     }
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct ProcessConfig {
+    pub validators: Vec<(String, String)>,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ValidatorNomination {
     pub nominator: String,
@@ -64,13 +69,13 @@ pub struct Validator {
     pub nominations: Vec<ValidatorNomination>,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ValidatorNominationOutput {
     pub nominator: String,
     pub stake: String,
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ValidatorOutput {
     pub stash: String,
     pub self_stake: String,
@@ -168,7 +173,7 @@ pub struct StakingStats {
     pub avg_staked: Balance,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StakingStatsOutput {
     pub total_staked: String,
     pub lowest_staked: String,
@@ -176,7 +181,7 @@ pub struct StakingStatsOutput {
 }
 
 // Output simulation with formatted stake strings
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SimulationResultOutput {
     pub run_parameters: RunParameters,
     pub staking_stats: StakingStatsOutput,

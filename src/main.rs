@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::api::routes::root;
 use crate::simulate::{SimulateService, SimulateServiceImpl};
 use crate::snapshot::{SnapshotService, SnapshotServiceImpl};
-use crate::models::{Chain, Algorithm};
+use crate::models::{Chain, Algorithm, ProcessConfig, SimulationResultOutput};
 use crate::multi_block_state_client::{MultiBlockClient};
 use crate::primitives::Storage;
 use crate::raw_state_client::RawClientTrait;
@@ -78,12 +78,28 @@ pub struct SnapshotArgs {
     pub output: String,
 }
 
+
+#[derive(Parser, Debug)]
+pub struct ProcessResultsArgs {
+    /// Previously generated outputs file
+    #[arg(short, long, default_value = "simulate.json")]
+    pub results: String,
+
+    /// config for processing
+    #[arg(short, long, default_value = "process-config.json")]
+    pub process_args: String
+}
+
+
 #[derive(Subcommand, Debug)]
 enum Action {
     /// Simulate the election using the specified algorithm (seq_phragmen or phragmms)
     Simulate(SimulateArgs),
     /// Retrieve actual snapshot containing validator candidates and their voters
     Snapshot(SnapshotArgs),
+
+    /// Process the generated output
+    ProcessResults(ProcessResultsArgs),
 
     /// Start REST API server
     Server {
@@ -163,6 +179,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     miner_config::set_runtime_constants(miner_constants.clone(), chain);
 
     match args.action {
+        Action::ProcessResults(process_args) => {
+            let path = process_args.process_args;
+            let file = std::fs::read(&path)
+                .map_err(|e| format!("Failed to read process config file '{}': {}", path, e))?;
+            let config: ProcessConfig = serde_json::from_slice(&file).map_err(|e| format!("Failed to parse process config JSON: {}", e))?;
+
+            println!("Validators to process: {:?}", config.validators);
+
+            let path = process_args.results;
+            let file = std::fs::read(&path)
+                .map_err(|e| format!("Failed to read results output file '{}': {}", path, e))?;
+            let _config: SimulationResultOutput = serde_json::from_slice(&file).map_err(|e| format!("Failed to parse results output JSON: {}", e))?;
+
+            println!("Read config");
+        },
         Action::Simulate(simulate_args) => {
             let block: Option<H256> = if simulate_args.block == "latest" {
                 None
