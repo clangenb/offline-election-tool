@@ -54,6 +54,8 @@ pub struct ValidatorNomination {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Validator {
     pub stash: String,
+    // desirability of the validator as per PhragmenSeq/Phragmms
+    pub slot: u32,
     pub self_stake: Balance,
     pub total_stake: Balance,
     pub commission: f64,
@@ -74,6 +76,7 @@ pub struct ValidatorOutput {
     pub self_stake: String,
     pub total_stake: String,
     pub slot: u32,
+    pub slot_phragmen: u32,
     pub commission: f64,
     pub blocked: bool,
     pub nominations_count: usize,
@@ -198,6 +201,7 @@ impl SimulationResult {
                     self_stake: chain.format_stake(v.self_stake),
                     total_stake: chain.format_stake(v.total_stake),
                     slot: i as u32,
+                    slot_phragmen: v.slot,
                     commission: v.commission,
                     blocked: v.blocked,
                     nominations_count: v.nominations_count,
