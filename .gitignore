@@ -1,5 +1,8 @@
 /target
 .vscode/
 
+# Config output files of this binary
 override-*
 simulate*
+process-config*
+processed*
