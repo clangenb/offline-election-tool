@@ -262,6 +262,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             write_output(&output_result, &output)?;
 
             if let Some(ref ppc) = simulate_args.post_process_config {
+                log::info!("Do post process data with {}", ppc);
                 let config: ProcessConfig = read_json_file(ppc)?;
 
                 let processed = ProcessResults {
