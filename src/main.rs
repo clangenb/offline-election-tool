@@ -87,7 +87,11 @@ pub struct ProcessResultsArgs {
 
     /// config for processing
     #[arg(short, long, default_value = "process-config.json")]
-    pub process_args: String
+    pub process_args: String,
+
+    /// Output file path
+    #[arg(short, long, default_value = "processed.json")]
+    pub output: String,
 }
 
 
@@ -203,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }))
                 }).collect()
             };
-            println!("Processed: {:?}", processed);
+            write_output(&processed, process_args.output)?;
         },
         Action::Simulate(simulate_args) => {
             let block: Option<H256> = if simulate_args.block == "latest" {
