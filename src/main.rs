@@ -66,6 +66,10 @@ pub struct SimulateArgs {
     /// Manual override JSON file path for voters and candidates
     #[arg(short = 'm', long)]
     pub manual_override: Option<String>,
+
+    /// Path to the config for processing
+    #[arg(long)]
+    pub post_process_config: Option<String>,
 }
 
 #[derive(Parser, Debug)]
@@ -125,7 +129,7 @@ struct Args {
     action: Action,
 }
 
-fn write_output<T: serde::Serialize>(data: &T, file_path: String) -> Result<(), Box<dyn std::error::Error>> {
+fn write_output<T: serde::Serialize>(data: &T, file_path: &String) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(data)?;
     if file_path != "-" {
         let mut file = File::create(file_path)?;
@@ -136,8 +140,8 @@ fn write_output<T: serde::Serialize>(data: &T, file_path: String) -> Result<(), 
     Ok(())
 }
 
-fn read_json_file<T: DeserializeOwned>(path: String) -> Result<T, Box<dyn std::error::Error>> {
-    let file = std::fs::read(&path)
+fn read_json_file<T: DeserializeOwned>(path: &String) -> Result<T, Box<dyn std::error::Error>> {
+    let file = std::fs::read(path)
         .map_err(|e| format!("Failed to read file '{}': {}", path, e))?;
 
     serde_json::from_slice(&file).map_err(|e| format!("Failed to parse file into JSON: {}", e))
@@ -193,12 +197,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.action {
         Action::ProcessResults(process_args) => {
-            let config: ProcessConfig = read_json_file(process_args.process_config)?;
+            let config: ProcessConfig = read_json_file(&process_args.process_config)?;
 
             log::info!("Validators Names process: {:?}", config.validators.iter().map(|v| v.0.clone()).collect::<Vec<_>>());
             log::debug!("Validators to process: {:?}", config.validators);
 
-            let output: SimulationResultOutput = read_json_file(process_args.results)?;
+            let output: SimulationResultOutput = read_json_file(&process_args.results)?;
 
             let processed = ProcessResults {
                 validators: config.validators.into_iter().map(|(name, stash)| {
@@ -212,7 +216,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }))
                 }).collect()
             };
-            write_output(&processed, process_args.output)?;
+            write_output(&processed, &process_args.output)?;
         },
         Action::Simulate(simulate_args) => {
             let block: Option<H256> = if simulate_args.block == "latest" {
@@ -254,7 +258,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             let result = election_result.unwrap();
             let output_result = result.to_output(chain);
-            write_output(&output_result, output)?;
+
+            write_output(&output_result, &output)?;
+
+            if let Some(ref ppc) = simulate_args.post_process_config {
+                let config: ProcessConfig = read_json_file(ppc)?;
+
+                let processed = ProcessResults {
+                    validators: config.validators.into_iter().map(|(name, stash)| {
+                        (name, output_result.active_validators.iter().find_map(|v| {
+                            if v.stash == stash {
+                                Some(v.clone())
+                            } else {
+                                // None implies that this validator hasn't been elected.
+                                None
+                            }
+                        }))
+                    }).collect()
+                };
+                write_output(&processed, &[output.replace(".json", ""), "processed.json".to_string()].join("-"))?;
+            }
         }
         Action::Snapshot(snapshot_args) => {
             let block: Option<H256> = if snapshot_args.block == "latest" {
@@ -274,7 +297,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             let snapshot = snapshot.unwrap();
             let output_snapshot = snapshot.to_output(chain);
-            write_output(&output_snapshot, snapshot_args.output)?;
+            write_output(&output_snapshot, &snapshot_args.output)?;
         }
         Action::Server { address } => {
             info!("Starting server on {}", address);
