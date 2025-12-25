@@ -210,8 +210,9 @@ impl SimulationResult {
                     stash: v.stash.clone(),
                     self_stake: chain.format_stake(v.self_stake),
                     total_stake: chain.format_stake(v.total_stake),
-                    slot: i as u32,
-                    slot_phragmen: v.slot,
+                    slot: i as u32 + 1,
+                    // Traditionally, the frontends start counting at 1.
+                    slot_phragmen: v.slot + 1,
                     commission: v.commission,
                     blocked: v.blocked,
                     nominations_count: v.nominations_count,
