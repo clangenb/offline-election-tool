@@ -196,7 +196,7 @@ pub struct SimulationResultOutput {
 impl SimulationResult {
     pub fn to_output(&self, chain: Chain) -> SimulationResultOutput {
         let mut vals = self.active_validators.clone();
-        vals.sort_by(|a, b| b.total_stake.cmp(&a.total_stake));
+        vals.sort_by(|a, b| b.slot.cmp(&a.slot));
 
         SimulationResultOutput {
             run_parameters: self.run_parameters.clone(),
