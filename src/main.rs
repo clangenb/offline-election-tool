@@ -1,10 +1,11 @@
-use tracing::info;
+use tracing::{info, log};
 use sp_core::{H256};
 use clap::{arg, command, Parser, Subcommand};
 use sp_core::crypto::set_default_ss58_version;
 use std::fs::File;
 use std::io::Write;
 use std::sync::Arc;
+use serde::de::DeserializeOwned;
 use crate::api::routes::root;
 use crate::simulate::{SimulateService, SimulateServiceImpl};
 use crate::snapshot::{SnapshotService, SnapshotServiceImpl};
@@ -85,9 +86,9 @@ pub struct ProcessResultsArgs {
     #[arg(short, long, default_value = "simulate.json")]
     pub results: String,
 
-    /// config for processing
+    /// Path to the config for processing
     #[arg(short, long, default_value = "process-config.json")]
-    pub process_args: String,
+    pub process_config: String,
 
     /// Output file path
     #[arg(short, long, default_value = "processed.json")]
@@ -133,6 +134,14 @@ fn write_output<T: serde::Serialize>(data: &T, file_path: String) -> Result<(), 
         println!("{}", json);
     }
     Ok(())
+}
+
+fn read_json_file<T: DeserializeOwned>(path: String) -> Result<T, Box<dyn std::error::Error>> {
+    let file = std::fs::read(&path)
+        .map_err(|e| format!("Failed to read file '{}': {}", path, e))?;
+
+    serde_json::from_slice(&file).map_err(|e| format!("Failed to parse file into JSON: {}", e))
+        .map_err(Into::into)
 }
 
 
@@ -184,17 +193,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match args.action {
         Action::ProcessResults(process_args) => {
-            let path = process_args.process_args;
-            let file = std::fs::read(&path)
-                .map_err(|e| format!("Failed to read process config file '{}': {}", path, e))?;
-            let config: ProcessConfig = serde_json::from_slice(&file).map_err(|e| format!("Failed to parse process config JSON: {}", e))?;
+            let config: ProcessConfig = read_json_file(process_args.process_config)?;
 
-            println!("Validators to process: {:?}", config.validators);
+            log::info!("Validators Names process: {:?}", config.validators.iter().map(|v| v.0.clone()).collect::<Vec<_>>());
+            log::debug!("Validators to process: {:?}", config.validators);
 
-            let path = process_args.results;
-            let file = std::fs::read(&path)
-                .map_err(|e| format!("Failed to read results output file '{}': {}", path, e))?;
-            let output: SimulationResultOutput = serde_json::from_slice(&file).map_err(|e| format!("Failed to parse results output JSON: {}", e))?;
+            let output: SimulationResultOutput = read_json_file(process_args.results)?;
 
             let processed = ProcessResults {
                 validators: config.validators.into_iter().map(|(name, stash)| {
@@ -202,6 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if v.stash == stash {
                             Some(v.clone())
                         } else {
+                            // None implies that this validator hasn't been elected.
                             None
                         }
                     }))
