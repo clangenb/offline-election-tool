@@ -85,7 +85,6 @@ pub struct ValidatorOutput {
     pub stash: String,
     pub self_stake: String,
     pub total_stake: String,
-    pub slot: u32,
     pub slot_phragmen: u32,
     pub commission: f64,
     pub blocked: bool,
@@ -205,12 +204,11 @@ impl SimulationResult {
                 lowest_staked: chain.format_stake(self.staking_stats.lowest_staked),
                 avg_staked: chain.format_stake(self.staking_stats.avg_staked),
             },
-            active_validators: vals.iter().enumerate().map(|(i, v)| {
+            active_validators: vals.iter().map(|v| {
                 ValidatorOutput {
                     stash: v.stash.clone(),
                     self_stake: chain.format_stake(v.self_stake),
                     total_stake: chain.format_stake(v.total_stake),
-                    slot: i as u32 + 1,
                     // Traditionally, the frontends start counting at 1.
                     slot_phragmen: v.slot + 1,
                     commission: v.commission,
