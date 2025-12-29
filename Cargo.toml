@@ -42,11 +42,11 @@ codegen-units = 1
 incremental = false
 
 [patch.crates-io]
-frame-support = {path = "../polkadot-sdk/substrate/frame/support"}
-pallet-election-provider-multi-block = {path = "../polkadot-sdk/substrate/frame/election-provider-multi-block"}
-pallet-staking = {path = "../polkadot-sdk/substrate/frame/staking"}
-frame-election-provider-support = {path = "../polkadot-sdk/substrate/frame/election-provider-support"}
-sp-core = {path = "../polkadot-sdk/substrate/primitives/core"}
-sp-npos-elections = {path = "../polkadot-sdk/substrate/primitives/npos-elections"}
-sp-runtime = {path = "../polkadot-sdk/substrate/primitives/runtime"}
-sp-version = {path = "../polkadot-sdk/substrate/primitives/version"}
+frame-support = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+pallet-election-provider-multi-block = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+pallet-staking = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+frame-election-provider-support = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+sp-core = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+sp-npos-elections = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+sp-runtime = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
+sp-version = { git = "https://github.com/clangenb/polkadot-sdk", branch = "cl/patch-npos" }
