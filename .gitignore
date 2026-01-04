@@ -2,7 +2,5 @@
 .vscode/
 
 # Config and output files
-override-*
-simulate*
 configs/
 results/
