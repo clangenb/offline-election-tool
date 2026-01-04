@@ -67,7 +67,9 @@ pub struct SimulateArgs {
     #[arg(short = 'm', long)]
     pub manual_override: Option<String>,
 
-    /// Path to the config for processing
+    /// Path to the config for processing.
+    ///
+    /// For now it simply filters the output for specified stashes.
     #[arg(long)]
     pub post_process_config: Option<String>,
 }
