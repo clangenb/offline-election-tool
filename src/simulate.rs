@@ -20,6 +20,7 @@ use crate::{models::{Validator, ValidatorNomination, SimulationResult, RunParame
 pub struct Override {
     pub voters: Vec<(String, u64, Vec<String>)>,
     pub voters_remove: Vec<String>,
+    pub voters_remove_vote: Vec<(String, Vec<String>)>,
     pub candidates: Vec<String>,
     pub candidates_remove: Vec<String>,
 }
@@ -222,6 +223,23 @@ where
                     all_voters.push(voter_data);
                 }
             }
+
+            // Remove votes of voters if they exist
+            for v in &manual.voters_remove_vote {
+                let voter_id: AccountId = AccountId::from_ss58check(&v.0)?;
+                let votes_to_remove: Vec<AccountId> = v.1.iter()
+                    .map(|vote| AccountId::from_ss58check(vote).map(|id| id.into()))
+                    .collect::<Result<_, _>>()?;
+
+                if let Some(existing_voter) = all_voters.iter_mut().find(|vv| vv.0 == voter_id) {
+                    info!("manual override: {:?} is a voter. Removing votes.", v.0);
+                    let updated_votes = existing_voter.2.clone().into_iter().filter(|v| !votes_to_remove.contains(v)).collect::<Vec<_>>();
+                    existing_voter.2 = updated_votes.try_into().expect("can't be more than existing nominator set; qed");
+                } else {
+                    info!("manual override: {:?} didn't vote for {:?}, removing vote is a noop.", v.0, votes_to_remove);
+                }
+            }
+
 
             // Remove voters in the removal list
             for v in &manual.voters_remove {
