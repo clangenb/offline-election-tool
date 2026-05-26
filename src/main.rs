@@ -259,6 +259,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err(format!("Error in election simulation -> {}", election_result.err().unwrap()).into());
             }
             let result = election_result.unwrap();
+
+
+            let min_self_stake = 10_000_000_000u128 * 10_000;
+            let polkadot = Chain::Polkadot;
+            let with_min_self_stake: Vec<_> = result.active_validators.iter().filter(|v| v.self_stake > min_self_stake).collect();
+
+            println!("Validators with self_stake > {} Dot: {}", polkadot.format_stake(min_self_stake), with_min_self_stake.len());
+
             let output_result = result.to_output(chain);
 
             write_output(&output_result, &output)?;
