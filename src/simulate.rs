@@ -220,7 +220,7 @@ where
                     *existing_voter = voter_data;
                 } else {
                     info!("manual override: {:?} is added as voter.", v.0);
-                    all_voters.push(voter_data);
+                    all_voters.insert(0, voter_data);
                 }
             }
 
