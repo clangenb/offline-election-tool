@@ -50,16 +50,22 @@ Chain is auto-detected from runtime version spec_name.
 - `configs/` — chain-specific override and post-process configs; gitignored
 - `results/` — simulation output; gitignored
 
-Override schema:
+Override schema (all fields optional; omitted fields default to empty):
 ```json
 {
   "candidates": ["addr"],
   "candidates_remove": ["addr"],
   "voters": [["addr", stake_u64, ["target_addr"]]],
   "voters_remove": ["addr"],
-  "voters_remove_vote": [["voter_addr", ["target_addr"]]]
+  "voters_remove_vote": [["voter_addr", ["target_addr"]]],
+  "self_bond": [["validator_addr", amount_planck_u64]]
 }
 ```
+
+`self_bond` simulates a validator having added self-bond: each entry re-adds the
+validator as a candidate (surviving the `min_validator_bond` filter, which is
+applied before overrides using on-chain `ledger.active`) and injects a self-vote
+of `amount`. Used to model the upcoming 10k DOT minimum self-bond.
 
 ## Testing
 

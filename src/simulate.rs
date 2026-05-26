@@ -16,13 +16,18 @@ use crate::{miner_config, models::StakingStats, multi_block_state_client::{Multi
 
 use crate::{models::{Validator, ValidatorNomination, SimulationResult, RunParameters}, multi_block_state_client::ChainClientTrait, primitives::AccountId};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
 pub struct Override {
     pub voters: Vec<(String, u64, Vec<String>)>,
     pub voters_remove: Vec<String>,
     pub voters_remove_vote: Vec<(String, Vec<String>)>,
     pub candidates: Vec<String>,
     pub candidates_remove: Vec<String>,
+    /// Simulate a validator having added self-bond: (stash, amount_planck).
+    /// Each entry re-adds the validator as a candidate (bypassing the
+    /// `min_validator_bond` filter) and injects a self-vote of `amount`.
+    pub self_bond: Vec<(String, u64)>,
 }
 
 // Service trait - application port for handlers
@@ -168,7 +173,14 @@ where
         }
         
         // Manual override
-        if let Some(manual) = manual_override {
+        if let Some(mut manual) = manual_override {
+            // Expand `self_bond` entries into a candidate re-add (to survive the
+            // min_validator_bond filter above) plus a self-vote of the given amount.
+            for (addr, amount) in manual.self_bond.clone() {
+                manual.candidates.push(addr.clone());
+                manual.voters.push((addr.clone(), amount, vec![addr]));
+            }
+
             // Convert targets to Vec for manipulation
             let mut targets: Vec<AccountId> = snapshot.targets.iter().cloned().collect();
 
@@ -478,6 +490,7 @@ mod tests {
         let simulation_result = result.unwrap();
         assert_eq!(simulation_result.active_validators, vec![Validator {
             stash: "5DLAjiZbVGBG1w5xNTaPuHXXVpvzEqWFhw4kwWt7YcNQnKQ2".to_string(),
+            slot: 0,
             self_stake: 0,
             total_stake: 100,
             commission: 0.0,
@@ -568,6 +581,7 @@ mod tests {
         let simulation_result = result.unwrap();
         assert_eq!(simulation_result.active_validators, vec![Validator {
             stash: "5DLAjiZbVGBG1w5xNTaPuHXXVpvzEqWFhw4kwWt7YcNQnKQ2".to_string(),
+            slot: 0,
             self_stake: 0,
             total_stake: 100,
             commission: 0.0,
@@ -621,6 +635,7 @@ mod tests {
             voters_remove: vec!["5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty".to_string()],
             candidates: vec!["5E9yWMxT1CoRPo7CxXQ4uLpHBmwzjFfJDV87dDMGxDo6WuMa".to_string()],
             candidates_remove: vec!["5DLAjiZbVGBG1w5xNTaPuHXXVpvzEqWFhw4kwWt7YcNQnKQ2".to_string()],
+            ..Default::default()
         };
 
         let mut snapshot_service = MockSnapshotService::new();
@@ -645,6 +660,7 @@ mod tests {
         let simulation_result = result.unwrap();
         assert_eq!(simulation_result.active_validators, vec![Validator {
             stash: "5E9yWMxT1CoRPo7CxXQ4uLpHBmwzjFfJDV87dDMGxDo6WuMa".to_string(),
+            slot: 0,
             self_stake: 0,
             total_stake: 100,
             commission: 0.0,
@@ -654,6 +670,75 @@ mod tests {
                 nominator: "5GE5XFDHirGGeYNNUCwCBks1rsSWMomj2AqNyZVFsKVUqWZD".to_string(),
                 stake: 100,
             }],
+        }]);
+    }
+
+    #[tokio::test]
+    async fn test_simulate_with_self_bond() {
+        initialize_runtime_constants();
+        type MockMBC = MockMultiBlockClientTrait<MockChainClientTrait, PolkadotMinerConfig, MockDummyStorage>;
+        type MockBD = BlockDetails<MockDummyStorage>;
+
+        let mut mock_client = MockMBC::new();
+        let block_details = MockBD {
+            block_hash: Some(Hash::zero()),
+            phase: Phase::Snapshot(0),
+            round: 1,
+            n_pages: 1,
+            desired_targets: 10,
+            storage: MockDummyStorage::new(),
+            _block_number: 100,
+        };
+
+        mock_client.expect_get_phase()
+            .returning(|_storage: &MockDummyStorage| Ok(Phase::Snapshot(0)));
+
+        let block_details_clone = block_details.clone();
+        mock_client.expect_get_block_details()
+            .with(eq(None))
+            .returning(move |_block: Option<H256>| Ok(block_details_clone.clone()));
+
+        mock_client
+            .expect_get_validator_prefs()
+            .returning(|_storage: &MockDummyStorage, _validator: AccountId| Ok(ValidatorPrefs {
+                commission: Perbill::from_parts(0),
+                blocked: false,
+            }));
+
+        // Snapshot has no candidates or voters of its own; the validator only
+        // becomes electable through the self_bond override.
+        let mut snapshot_service = MockSnapshotService::new();
+        snapshot_service.expect_get_snapshot_data_from_multi_block().returning(move |_block_details: &BlockDetails<MockDummyStorage>| {
+            Ok((ElectionSnapshotPage::<PolkadotMinerConfig> {
+                voters: vec![],
+                targets: BoundedVec::try_from(vec![]).unwrap()
+            }, StakingConfig {
+                desired_validators: 10,
+                max_nominations: 16,
+                min_nominator_bond: 0,
+                min_validator_bond: 0,
+            }))
+        });
+
+        // self_bond re-adds the validator as a candidate and injects a self-vote of 500.
+        let manual_override = Override {
+            self_bond: vec![("5DLAjiZbVGBG1w5xNTaPuHXXVpvzEqWFhw4kwWt7YcNQnKQ2".to_string(), 500)],
+            ..Default::default()
+        };
+
+        let simulate_service = SimulateServiceImpl::new(Arc::new(mock_client), Arc::new(snapshot_service));
+        let result = simulate_service.simulate(None, None, false, Some(manual_override), None, None).await;
+        assert!(result.is_ok());
+        let simulation_result = result.unwrap();
+        assert_eq!(simulation_result.active_validators, vec![Validator {
+            stash: "5DLAjiZbVGBG1w5xNTaPuHXXVpvzEqWFhw4kwWt7YcNQnKQ2".to_string(),
+            slot: 0,
+            self_stake: 500,
+            total_stake: 500,
+            commission: 0.0,
+            blocked: false,
+            nominations_count: 0,
+            nominations: vec![],
         }]);
     }
 }

@@ -94,6 +94,7 @@ The manual override feature allows you to:
 - Remove specific candidates from the election
 - Add or override voters with custom stake amounts (regardless of on-chain bonded amounts)
 - Remove specific voters from the election
+- Simulate added validator self-bond via the optional `self_bond` field: `"self_bond": [["validator_addr", amount_planck]]`. Each entry re-adds the validator as a candidate (so it survives the `--min-validator-bond` filter, which is applied before overrides using on-chain bonded stake) and injects a self-vote of `amount`. Useful for modelling a minimum self-bond requirement.
 
 #### Save output to specific file names:
 ```bash
